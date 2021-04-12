@@ -46,7 +46,10 @@ func newFileInfo(name string, fs *GcsFs, fileMode os.FileMode) (*FileInfo, error
 		fileMode: fileMode,
 	}
 
-	obj := fs.getObj(name)
+	obj, err := fs.getObj(name)
+	if err != nil {
+		return nil, err
+	}
 
 	objAttrs, err := obj.Attrs(fs.ctx)
 	if err != nil {
@@ -58,8 +61,9 @@ func newFileInfo(name string, fs *GcsFs, fileMode os.FileMode) (*FileInfo, error
 		} else if err.Error() == ErrObjectDoesNotExist.Error() {
 			// Folders do not actually "exist" in GCloud, so we have to check, if something exists with
 			// such a prefix
-			it := fs.bucket.Objects(
-				fs.ctx, &storage.Query{Delimiter: fs.separator, Prefix: name, Versions: false})
+			bucketName, bucketPath := fs.splitName(name)
+			it := fs.client.Bucket(bucketName).Objects(
+				fs.ctx, &storage.Query{Delimiter: fs.separator, Prefix: bucketPath, Versions: false})
 			if _, err = it.Next(); err == nil {
 				res.name = fs.ensureTrailingSeparator(res.name)
 				res.isDir = true
