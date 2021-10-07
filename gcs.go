@@ -19,6 +19,7 @@ package afero
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -40,19 +41,25 @@ type GcsFs struct {
 // cloud.google.com/go/storage documentation
 func NewGcsFS(ctx context.Context, opts ...option.ClientOption) (Fs, error) {
 	if v := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS_JSON"); v != "" {
+		fmt.Printf("found:\n %s\n", v)
 		// check if this is a valid JSON
 		var m map[string]interface{}
 		if err := json.Unmarshal([]byte(v), &m); err == nil {
+			fmt.Println("valid json GOOGLE_APPLICATION_CREDENTIALS_JSON")
 			opts = append(opts, option.WithCredentialsJSON([]byte(v)))
 		} else {
 			// try tu unquote
 			if unquoted, err := strconv.Unquote(v); err == nil {
 				if err := json.Unmarshal([]byte(unquoted), &m); err == nil {
+					fmt.Println("valid after unescape GOOGLE_APPLICATION_CREDENTIALS_JSON")
 					opts = append(opts, option.WithCredentialsJSON([]byte(unquoted)))
 				}
 			}
 		}
+	} else {
+		fmt.Println("not found: GOOGLE_APPLICATION_CREDENTIALS_JSON ")
 	}
+	fmt.Printf("opts: %v\n", opts)
 	client, err := storage.NewClient(ctx, opts...)
 	if err != nil {
 		return nil, err

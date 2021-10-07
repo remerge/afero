@@ -13,13 +13,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 
 	"golang.org/x/oauth2/google"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/spf13/afero/gcsfs"
+	"github.com/stretchr/testify/require"
 
 	"cloud.google.com/go/storage"
 	"github.com/googleapis/google-cloud-go-testing/storage/stiface"
@@ -64,6 +67,34 @@ var dirs = []struct {
 
 var gcsAfs *Afero
 
+func TestNewClient(t *testing.T) {
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS_JSON", strconv.Quote(`
+	{
+		"type": "xservice_account",
+		"project_id": "martin-test-datalab",
+		"private_key_id": "56cc9542ed9a2d67998b3504bf5877887fb5d254",
+		"private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDrlVIuSSgJOFaw\nMZl07UZ9ParXBARoUW46FGwPcPfOI6LUoTa9AdI/0TnvGHH+gB5tDsaKKikXSCMa\n1yq/yiXR8ePqqdwlF5uY+PKEFVPe6YTKMkyWnKEsD14nGu6ssccgYOjBPHP1m5x9\nXK4uDIYZgPc9D+TJllKarO1FGxAajNQ957B4iEw95i6gdh2v0F/kOEUL1giw4yKO\n7Xeeu6xk3cWaWocSYwTJKvPSHJq1lXnYH+MWluMvsXwRJA1GgsOlQhPmgEs3w350\nwWQ9EFQQm7rqoTsSpSQdF3kRhT/7whMvDCsfC7hvM6cuElZlmy910lwNFJa6D0/k\n5ik2FeUzAgMBAAECggEAC55Y0r07Pb/VuqkqOyjhQ0JRf3rhvW6tWSzyVWKfaL8Q\n2Ua9fIiEoNlwmi5M9PMcTQmfrhG9PA+L4ld+nWiFVqYvij5oA+ZMVLjhEQrnkNoD\nJAu4rkGO9gLTWb9gymCW2a3Ih5CJMYbuqq9xobDEGP7ncqSq28Gk/57hXCP6YSy8\n/mVC53RrLUjBcaLOntLn7edqBnPAiopnXCq4vwEYwsLPyTYh4NgLfMbIwI3pjrZT\n4fjGcZEAEg3DMQr2ocOU6yugRZFF6mDT4w51yV3BhBHr7qWc0Nx+8zFErEtr8TRf\nTr67Nu+oLYSDoLknVO427AMnQRUswTvy3mnLwDDPWQKBgQD2NVjvvkCi2rbXpAXz\nCnvw24X7J8C+RIMquXud7Kwy3/1DPHvNtMfD3Et0df4L7+3Rhovw2mrklbReGnGM\nXh4WAcHxbs+yk8fBjtCq+rkKdoQkw8tfDlParhSyZtUqDhILBu5yWCw+a1DMBONV\nml2gZoxKZSy717ADgElE3fDsewKBgQD088yZuqMeVDvjg/ZiMmqJtt1oVDoe+7Y3\nOxiseomtrD+uoGhfjOWxMpqMXK/qDs8KalENVdadeuoaFbuf4odKAbW/PHfcetgW\nnnHP2/QUscCsYEtSWXaeuKPSQH6Qg0dc72POoxU/O2tTc+PfuDpWG3p0Uz4OC0Bw\nu2ugnObYqQKBgQCfMo93NYWFx/ZCKQTPyg+qBcf0RhgS7yoBDj4oN0iA/OQ9/XXv\n5NzmgCMqAsFp5pHX0S/bZN+JPmOKFX8mTBUYFbrZ6dTSm0umlDnI1KWhZlC7lP6D\nUDhYRgeL84IR11dDWhAET48MLUfpI5/7Uf0IIkbEM/dg3m4pVWIK7ZdC0QKBgQDj\nrF81W+YVYJGxrIwrRVUE33T3baH//lGlEEakudiSFhGyy+F3PkyX4MMJR3UyhcUm\nlx7y2B/8i6xfxmd3+mNpBCHbt+Zohb2neGmsm3JIcdb14SLhTcoVSOTrnYqF459G\n4DLSc35iIWZmUMcyv9dpBW1SBbUd9JNWtL0asftW0QKBgQCFuAVKbtOR8Nz2MLdk\nKKiU9i6kLF4l/ZJ95nlDTI6KF05a9ENjy3meh8JOI94I21NHNX1ApmwcfcYKtTXH\n8bkE6Gd+NFCTwDqkmzeON8doiiX4a3vLhSuQntXLqhiHmp3W3CfK7F0X825mbHrD\nuffwU6nnrYNOjH5eyHI+ChAZdw==\n-----END PRIVATE KEY-----\n",
+		"client_email": "mlem-428@martin-test-datalab.iam.gserviceaccount.com",
+		"client_id": "105134059026312916361",
+		"auth_uri": "https://accounts.google.com/o/oauth2/auth",
+		"token_uri": "https://oauth2.googleapis.com/token",
+		"auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+		"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/mlem-428%40martin-test-datalab.iam.gserviceaccount.com"
+	}`))
+
+	fs, err := NewGcsFS(context.Background())
+	require.NoError(t, err)
+	f, err := fs.Create("gs://remerge-tmp/test.json")
+	require.NoError(t, err)
+	_ = fs
+	_ = f
+	fi, err := f.Stat()
+	require.NoError(t, err)
+	spew.Dump(fi)
+
+}
+
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 	var err error
@@ -101,7 +132,7 @@ func TestMain(m *testing.M) {
 
 		// reset it after the run
 		defer func() {
-			err = os.Remove("GOOGLE_APPLICATION_CREDENTIALS")
+			err = os.Remove(fakeCredentialsAbsPath)
 			if err != nil {
 				// it's worth printing it out explicitly, since it might have implications further down the road
 				fmt.Print("failed to clear fake GOOGLE_APPLICATION_CREDENTIALS", err)
